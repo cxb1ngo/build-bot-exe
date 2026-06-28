@@ -55,30 +55,16 @@ jobs:
             exit 1
           }
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+      - name: Upload EXE as artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: build-${{ github.event.inputs.user_id }}
-          release_name: Build for user ${{ github.event.inputs.user_id }}
-          draft: false
-          prerelease: false
-
-      - name: Upload EXE to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/benz0_${{ github.event.inputs.user_id }}.exe
-          asset_name: benz0_${{ github.event.inputs.user_id }}.exe
-          asset_content_type: application/octet-stream
+          name: benz0_${{ github.event.inputs.user_id }}
+          path: dist/benz0_${{ github.event.inputs.user_id }}.exe
 
       - name: Notify bot about completion
+        env:
+          USER_ID: ${{ github.event.inputs.user_id }}
         run: |
-          $file_url = "https://github.com/JJ3RD0XXS/build-bot-exe/releases/download/build-${{ github.event.inputs.user_id }}/benz0_${{ github.event.inputs.user_id }}.exe"
           curl -X POST https://JJ3RD0XXS.pythonanywhere.com/build_complete `
             -H "Content-Type: application/json" `
-            -d "{\"user_id\": \"${{ github.event.inputs.user_id }}\", \"file_url\": \"$file_url\"}"
+            -d "{\"user_id\": \"$env:USER_ID\", \"run_id\": \"${{ github.run_id }}\"}"

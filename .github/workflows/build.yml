@@ -60,11 +60,3 @@ jobs:
         with:
           name: benz0_${{ github.event.inputs.user_id }}
           path: dist/benz0_${{ github.event.inputs.user_id }}.exe
-
-      - name: Notify bot about completion
-        env:
-          USER_ID: ${{ github.event.inputs.user_id }}
-        run: |
-          curl -X POST https://JJ3RD0XXS.pythonanywhere.com/build_complete `
-            -H "Content-Type: application/json" `
-            -d "{\"user_id\": \"$env:USER_ID\", \"run_id\": \"${{ github.run_id }}\"}"

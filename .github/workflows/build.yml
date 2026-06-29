@@ -48,11 +48,10 @@ import sys
 from PIL import Image
 try:
     img = Image.open('temp_icon.png')
-    # Сохраняем как ICO с набором стандартных размеров для Windows
     img.save('icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
-    print('Иконка успешно сконвертирована в icon.ico')
+    print('Иконка успешно сконвертирована')
 except Exception as e:
-    print(f'Ошибка конвертации: {e}', file=sys.stderr)
+    print(f'Ошибка: {e}', file=sys.stderr)
     sys.exit(1)
 "
 

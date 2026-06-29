@@ -35,14 +35,26 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pyinstaller pycryptodome requests
+          pip install pyinstaller pycryptodome requests pillow
 
-      - name: Decode icon (if provided)
+      - name: Decode and convert icon (if provided)
         if: github.event.inputs.icon_base64 != ''
         shell: pwsh
         run: |
           $bytes = [Convert]::FromBase64String("${{ github.event.inputs.icon_base64 }}")
-          [IO.File]::WriteAllBytes("icon.ico", $bytes)
+          [IO.File]::WriteAllBytes("temp_icon.png", $bytes)
+          python -c "
+import sys
+from PIL import Image
+try:
+    img = Image.open('temp_icon.png')
+    # Сохраняем как ICO с набором стандартных размеров для Windows
+    img.save('icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
+    print('Иконка успешно сконвертирована в icon.ico')
+except Exception as e:
+    print(f'Ошибка конвертации: {e}', file=sys.stderr)
+    sys.exit(1)
+"
 
       - name: Generate build script from template
         shell: pwsh
@@ -95,8 +107,7 @@ jobs:
             --hidden-import=binascii `
             $icon_arg `
             "${filename}.py"
-          $exe_name = "${{ github.event.inputs.file_name }}.exe"
-          if ("${{ github.event.inputs.file_name }}" -eq "") { $exe_name = "benz0_${{ github.event.inputs.user_id }}.exe" }
+          $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name
           } else {

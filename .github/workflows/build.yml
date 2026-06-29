@@ -71,14 +71,28 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE with forced Crypto folder
+      - name: Build EXE with ALL packages forced
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
-          # Определяем путь к папке Crypto
+          # Определяем пути к пакетам
           $crypto_path = python -c "import Crypto, os; print(os.path.dirname(Crypto.__file__))"
+          $urllib3_path = python -c "import urllib3, os; print(os.path.dirname(urllib3.__file__))"
+          $requests_path = python -c "import requests, os; print(os.path.dirname(requests.__file__))"
+          $certifi_path = python -c "import certifi, os; print(os.path.dirname(certifi.__file__))"
+          $charset_normalizer_path = python -c "import charset_normalizer, os; print(os.path.dirname(charset_normalizer.__file__))"
+          $idna_path = python -c "import idna, os; print(os.path.dirname(idna.__file__))"
+          $chardet_path = python -c "import chardet, os; print(os.path.dirname(chardet.__file__))"
+          $PIL_path = python -c "import PIL, os; print(os.path.dirname(PIL.__file__))"
           pyinstaller --onefile --noconsole `
             --add-data "$crypto_path;Crypto" `
+            --add-data "$urllib3_path;urllib3" `
+            --add-data "$requests_path;requests" `
+            --add-data "$certifi_path;certifi" `
+            --add-data "$charset_normalizer_path;charset_normalizer" `
+            --add-data "$idna_path;idna" `
+            --add-data "$chardet_path;chardet" `
+            --add-data "$PIL_path;PIL" `
             --collect-all=Crypto `
             --collect-all=urllib3 `
             --collect-all=requests `
@@ -86,6 +100,7 @@ jobs:
             --collect-all=charset_normalizer `
             --collect-all=idna `
             --collect-all=chardet `
+            --collect-all=PIL `
             --hidden-import=Crypto `
             --hidden-import=Crypto.Cipher `
             --hidden-import=Crypto.Hash `

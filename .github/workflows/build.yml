@@ -71,7 +71,7 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE with all dependencies
+      - name: Build EXE with ALL dependencies (FULL list)
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }

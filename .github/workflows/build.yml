@@ -71,6 +71,10 @@ jobs:
             --hidden-import=urllib `
             --hidden-import=urllib.request `
             --hidden-import=urllib.parse `
+            --hidden-import=urllib.error `
+            --hidden-import=urllib3 `
+            --hidden-import=urllib3.util `
+            --hidden-import=urllib3.poolmanager `
             --hidden-import=json `
             --hidden-import=sqlite3 `
             --hidden-import=zipfile `
@@ -95,12 +99,10 @@ jobs:
             --hidden-import=ssl `
             --hidden-import=hashlib `
             --hidden-import=hmac `
-            --hidden-import=urllib3 `
-            --hidden-import=urllib3.util `
-            --hidden-import=urllib3.poolmanager `
             --hidden-import=http.client `
             --hidden-import=io `
             --hidden-import=binascii `
+            --hidden-import=traceback `
             $icon_arg `
             "${filename}.py"
           $exe_name = "${{ github.event.inputs.file_name }}.exe"

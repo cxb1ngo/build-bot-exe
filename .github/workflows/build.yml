@@ -71,11 +71,14 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE with ALL dependencies (FULL list)
+      - name: Build EXE with forced Crypto folder
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
+          # Определяем путь к папке Crypto
+          $crypto_path = python -c "import Crypto, os; print(os.path.dirname(Crypto.__file__))"
           pyinstaller --onefile --noconsole `
+            --add-data "$crypto_path;Crypto" `
             --collect-all=Crypto `
             --collect-all=urllib3 `
             --collect-all=requests `

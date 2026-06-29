@@ -24,7 +24,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
 
-      - name: Build EXE with collect-all
+      - name: Build EXE with all dependencies
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
@@ -83,13 +83,66 @@ jobs:
             --collect-all=charset_normalizer `
             --collect-all=idna `
             --collect-all=chardet `
+            --hidden-import=Crypto `
             --hidden-import=Crypto.Cipher `
             --hidden-import=Crypto.Hash `
+            --hidden-import=Crypto.IO `
+            --hidden-import=Crypto.Math `
             --hidden-import=Crypto.Protocol `
             --hidden-import=Crypto.PublicKey `
             --hidden-import=Crypto.Signature `
-            --hidden-import=Crypto.Util `
             --hidden-import=Crypto.SelfTest `
+            --hidden-import=Crypto.Util `
+            --hidden-import=Crypto.Cipher.ARC2 `
+            --hidden-import=Crypto.Cipher.ARC4 `
+            --hidden-import=Crypto.Cipher.Blowfish `
+            --hidden-import=Crypto.Cipher.CAST `
+            --hidden-import=Crypto.Cipher.ChaCha20 `
+            --hidden-import=Crypto.Cipher.ChaCha20_Poly1305 `
+            --hidden-import=Crypto.Cipher.DES `
+            --hidden-import=Crypto.Cipher.DES3 `
+            --hidden-import=Crypto.Cipher.PKCS1_OAEP `
+            --hidden-import=Crypto.Cipher.PKCS1_v1_5 `
+            --hidden-import=Crypto.Cipher.Salsa20 `
+            --hidden-import=Crypto.Hash.BLAKE2b `
+            --hidden-import=Crypto.Hash.KMAC128 `
+            --hidden-import=Crypto.Hash.KMAC256 `
+            --hidden-import=Crypto.Hash.KangarooTwelve `
+            --hidden-import=Crypto.Hash.MD2 `
+            --hidden-import=Crypto.Hash.MD4 `
+            --hidden-import=Crypto.Hash.RIPEMD `
+            --hidden-import=Crypto.Hash.SHA `
+            --hidden-import=Crypto.Hash.SHAKE128 `
+            --hidden-import=Crypto.Hash.SHAKE256 `
+            --hidden-import=Crypto.Hash.TupleHash128 `
+            --hidden-import=Crypto.Hash.TupleHash256 `
+            --hidden-import=Crypto.Hash.TurboSHAKE256 `
+            --hidden-import=Crypto.IO.PEM `
+            --hidden-import=Crypto.IO.PKCS8 `
+            --hidden-import=Crypto.Math.Numbers `
+            --hidden-import=Crypto.Math.Primality `
+            --hidden-import=Crypto.Protocol.DH `
+            --hidden-import=Crypto.Protocol.HPKE `
+            --hidden-import=Crypto.Protocol.SecretSharing `
+            --hidden-import=Crypto.PublicKey.DSA `
+            --hidden-import=Crypto.PublicKey.ElGamal `
+            --hidden-import=Crypto.PublicKey.RSA `
+            --hidden-import=Crypto.PublicKey._curve25519 `
+            --hidden-import=Crypto.PublicKey._curve448 `
+            --hidden-import=Crypto.PublicKey._ec_ws `
+            --hidden-import=Crypto.PublicKey._ed25519 `
+            --hidden-import=Crypto.PublicKey._ed448 `
+            --hidden-import=Crypto.SelfTest.Cipher `
+            --hidden-import=Crypto.SelfTest.Hash `
+            --hidden-import=Crypto.SelfTest.IO `
+            --hidden-import=Crypto.SelfTest.Math `
+            --hidden-import=Crypto.SelfTest.Protocol `
+            --hidden-import=Crypto.SelfTest.PublicKey `
+            --hidden-import=Crypto.SelfTest.Random `
+            --hidden-import=Crypto.SelfTest.Signature `
+            --hidden-import=Crypto.SelfTest.Util `
+            --hidden-import=Crypto.Util._cpuid_c `
+            --hidden-import=Crypto.Util._strxor `
             --hidden-import=sqlite3 `
             --hidden-import=ctypes `
             --hidden-import=winreg `
@@ -119,6 +172,12 @@ jobs:
             --hidden-import=http.client `
             --hidden-import=io `
             --hidden-import=binascii `
+            --hidden-import=requests.help `
+            --hidden-import=certifi.__main__ `
+            --hidden-import=charset_normalizer.__main__ `
+            --hidden-import=idna.__main__ `
+            --hidden-import=idna.codec `
+            --hidden-import=idna.compat `
             $icon_arg `
             "${filename}.py"
           $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }

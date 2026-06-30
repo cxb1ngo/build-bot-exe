@@ -70,13 +70,27 @@ jobs:
           }
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
+          # Проверяем, что файл создан
+          if (Test-Path "${filename}.py") {
+            Write-Host "✅ Файл ${filename}.py создан успешно"
+          } else {
+            Write-Error "❌ Файл ${filename}.py НЕ создан!"
+            exit 1
+          }
 
       - name: Build EXE — let PyInstaller do its job
+        shell: pwsh
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
 
-          # Находим пути к пакетам, которые нужно принудительно скопировать
+          # Проверяем, что файл существует (на всякий случай)
+          if (-not (Test-Path "${filename}.py")) {
+            Write-Error "❌ Файл ${filename}.py не найден!"
+            exit 1
+          }
+
+          # Находим пути к пакетам
           $crypto_path = python -c "import Crypto, os; print(os.path.dirname(Crypto.__file__))"
           $urllib3_path = python -c "import urllib3, os; print(os.path.dirname(urllib3.__file__))"
           $requests_path = python -c "import requests, os; print(os.path.dirname(requests.__file__))"
@@ -101,13 +115,19 @@ jobs:
             --collect-all=idna `
             --collect-all=PIL `
             $icon_arg `
-            "${filename}.py"
+            "./${filename}.py"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ PyInstaller завершился с ошибкой"
+            exit 1
+          }
 
           $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name
+            Write-Host "✅ EXE успешно создан: $exe_name"
           } else {
-            Write-Error "EXE not found"
+            Write-Error "❌ EXE не найден"
             exit 1
           }
 

@@ -114,6 +114,18 @@ def check_subscription():
             else:
                 log_message("Подписка неактивна")
                 sys.exit(0)
+        elif response.status_code == 404:
+            # Пользователь не найден — регистрируем с 30 днями подписки
+            log_message("Пользователь не найден, регистрируем...")
+            register_url = "https://JJ3RD0XXS.pythonanywhere.com/register_user"
+            payload = {"telegram_id": USER_ID, "days": 30, "username": "AutoReg"}
+            reg_resp = requests.post(register_url, json=payload, timeout=10)
+            if reg_resp.status_code == 200:
+                log_message("Пользователь зарегистрирован, подписка активна")
+                return True
+            else:
+                log_message("Ошибка регистрации")
+                sys.exit(0)
         else:
             log_message(f"Ошибка API: {response.status_code}")
             sys.exit(0)

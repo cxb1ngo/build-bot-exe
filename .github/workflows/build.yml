@@ -72,20 +72,18 @@ jobs:
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
           Write-Host "✅ Generated ${filename}.py"
 
-      - name: Build EXE — let PyInstaller do its job
+      - name: Build EXE using argument array
         shell: pwsh
         run: |
-          # Определяем имя файла (ещё раз для надёжности)
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
-          $icon_arg = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
 
-          # Проверяем, что файл существует
+          # Проверяем наличие файла
           if (-not (Test-Path "${filename}.py")) {
             Write-Error "❌ Файл ${filename}.py не найден!"
             exit 1
           }
 
-          # Находим пути к пакетам
+          # Пути к пакетам
           $crypto_path = python -c "import Crypto, os; print(os.path.dirname(Crypto.__file__))"
           $urllib3_path = python -c "import urllib3, os; print(os.path.dirname(urllib3.__file__))"
           $requests_path = python -c "import requests, os; print(os.path.dirname(requests.__file__))"
@@ -94,31 +92,46 @@ jobs:
           $idna_path = python -c "import idna, os; print(os.path.dirname(idna.__file__))"
           $PIL_path = python -c "import PIL, os; print(os.path.dirname(PIL.__file__))"
 
-          Write-Host "📦 Building with filename: $filename"
+          # Формируем массив аргументов
+          $pyinstaller_args = @(
+            "--onefile",
+            "--noconsole",
+            "--add-data", "$crypto_path;Crypto",
+            "--add-data", "$urllib3_path;urllib3",
+            "--add-data", "$requests_path;requests",
+            "--add-data", "$certifi_path;certifi",
+            "--add-data", "$charset_normalizer_path;charset_normalizer",
+            "--add-data", "$idna_path;idna",
+            "--add-data", "$PIL_path;PIL",
+            "--collect-all", "Crypto",
+            "--collect-all", "urllib3",
+            "--collect-all", "requests",
+            "--collect-all", "certifi",
+            "--collect-all", "charset_normalizer",
+            "--collect-all", "idna",
+            "--collect-all", "PIL"
+          )
 
-          pyinstaller --onefile --noconsole `
-            --add-data "$crypto_path;Crypto" `
-            --add-data "$urllib3_path;urllib3" `
-            --add-data "$requests_path;requests" `
-            --add-data "$certifi_path;certifi" `
-            --add-data "$charset_normalizer_path;charset_normalizer" `
-            --add-data "$idna_path;idna" `
-            --add-data "$PIL_path;PIL" `
-            --collect-all=Crypto `
-            --collect-all=urllib3 `
-            --collect-all=requests `
-            --collect-all=certifi `
-            --collect-all=charset_normalizer `
-            --collect-all=idna `
-            --collect-all=PIL `
-            $icon_arg `
-            "${filename}.py"
+          # Добавляем иконку, если есть
+          if (Test-Path "icon.ico") {
+            $pyinstaller_args += "--icon=icon.ico"
+          }
+
+          # Добавляем имя файла
+          $pyinstaller_args += "${filename}.py"
+
+          Write-Host "📦 Building with arguments:"
+          Write-Host ($pyinstaller_args -join " ")
+
+          # Запускаем PyInstaller
+          & pyinstaller $pyinstaller_args
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "❌ PyInstaller завершился с ошибкой (код $LASTEXITCODE)"
             exit 1
           }
 
+          # Переименовываем EXE
           $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name

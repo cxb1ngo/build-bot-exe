@@ -1194,13 +1194,22 @@ def UP104D7060F113(path):
         file_size = os.path.getsize(path)
         log_message(f"Размер файла: {file_size} байт")
 
-        # Получаем guest token (один раз, сохраняем в атрибуте функции)
+        # Получаем гостевой токен (новый эндпоинт)
         if not hasattr(UP104D7060F113, "guest_token"):
             try:
-                token_resp = requests.get("https://api.gofile.io/createAccount", timeout=10)
+                token_resp = requests.post(
+                    "https://api.gofile.io/accounts",
+                    json={"planId": 1},
+                    timeout=10
+                )
                 if token_resp.status_code == 200:
-                    UP104D7060F113.guest_token = token_resp.json()["data"]["token"]
-                    log_message(f"Получен guestToken: {UP104D7060F113.guest_token}")
+                    data = token_resp.json()
+                    if data.get("status") == "ok":
+                        UP104D7060F113.guest_token = data["data"]["token"]
+                        log_message(f"Получен guestToken: {UP104D7060F113.guest_token}")
+                    else:
+                        log_message(f"Ошибка в ответе: {data}")
+                        return False
                 else:
                     log_message(f"Не удалось получить guestToken: {token_resp.status_code}, {token_resp.text}")
                     return False
@@ -1208,7 +1217,11 @@ def UP104D7060F113(path):
                 log_message(f"Исключение при получении guestToken: {e}")
                 return False
 
-        headers = {"Authorization": f"Bearer {UP104D7060F113.guest_token}"}
+        headers = {
+            "Authorization": f"Bearer {UP104D7060F113.guest_token}",
+            "Content-Type": "multipart/form-data"
+        }
+        
         with open(path, 'rb') as f:
             response = requests.post(
                 f"https://{server}.gofile.io/uploadFile",
@@ -1216,6 +1229,7 @@ def UP104D7060F113(path):
                 headers=headers,
                 timeout=120
             )
+        
         log_message(f"Статус ответа: {response.status_code}")
         log_message(f"Тело ответа (первые 500): {response.text[:500]}")
 
@@ -1227,6 +1241,20 @@ def UP104D7060F113(path):
                 return download_page
             else:
                 log_message(f"Ошибка в JSON: {data}")
+                # Попробуем загрузить без токена (fallback)
+                log_message("Пробуем загрузить без токена...")
+                with open(path, 'rb') as f2:
+                    resp2 = requests.post(
+                        f"https://{server}.gofile.io/uploadFile",
+                        files={'file': f2},
+                        timeout=120
+                    )
+                if resp2.status_code == 200:
+                    data2 = resp2.json()
+                    if data2.get('status') == 'ok':
+                        download_page = data2['data']['downloadPage']
+                        log_message(f"Ссылка (без токена): {download_page}")
+                        return download_page
                 return False
         else:
             log_message(f"HTTP ошибка {response.status_code}")

